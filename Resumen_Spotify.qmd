@@ -1,0 +1,400 @@
+---
+title: "Resumen de Spotify"
+subtitle: "Jorge Martín Marcos"
+format:
+  html:
+    title-block-banner: "#191414"
+    title-block-banner-color: "#1db954"
+    toc: true
+    toc_float: true
+    toc-title: "Contenido"
+    lang: es
+editor: visual
+---
+
+```{=html}
+<style>
+body {
+text-align: justify}
+</style>
+```
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo=F, # Para que no se muestren los chunks con el código, solo el resultado.
+                      message=F, warning=F,
+                      fig.align = 'center')
+```
+
+```{r datos-librerias}
+source("datos_spotify.R")
+
+# Otras librerías
+p_load(DT, # La librería para las tablas interactivas
+       plotly, # Graficos interactivos sencillos (información al pasar el ratón)
+       htmltools, # Para que se vea bien el texto dentro de los recuadros
+       tidyverse)
+```
+
+## Tiempo dedicado a la música
+
+### ¿Cuánta música has escuchado este año?
+
+```{r texto-tiempo, results='asis'}
+# Crear los valores de los minutos, horas y segundos de música escuchada:
+min <- sum(spoti$Minutos) %>% round(0)
+horas <- sum(spoti$Horas) %>% round(1)
+dias <- round(horas / 24,2)
+
+# Generar un estilo de texto personalizado para el output:
+cat("<style>
+  .custom-box {
+    font-size: 16px; 
+    line-height: 1.5; 
+    text-align: center; /* Centrar el texto horizontalmente */
+    border: 2px solid black; /* Borde alrededor del recuadro - ancho tipo-de-line - color*/
+    padding: 10px; /* Espacio interior del recuadro */
+    margin: 20px auto; /* Centrarse en la página con márgenes automáticos */
+    width: 75%; /* Ancho del recuadro */
+    background-color: #d5f5e3; /* Color de fondo del recuadro */
+  }
+</style>")
+
+# Crear el texto que se mostrará con el resumen del tiempo de escucha:
+tiempo_año <- paste0(
+  "<div class='custom-box'>",
+  "Este año has pasado <strong>", horas, "</strong> horas escuchando música.<br>",
+  "Eso son <strong>", min, "</strong> minutos, o <strong>", dias, "</strong> días.",
+  "</div>")
+
+cat(tiempo_año)
+```
+
+A lo largo del año, has escuchado música del siguiente modo:
+
+```{r hist-minutos-dia}
+dias <- spoti %>% 
+  group_by(dia_año) %>% 
+  summarise(Minutos=sum(Minutos))
+
+ggplot(spoti, aes(x=dia_año)) +
+  geom_histogram(fill = "#1db954", color="black", alpha=0.7)+
+  theme_classic()+
+  theme(panel.grid.major.y = element_line(color="gray90", linetype="dashed"))+
+  labs(x="Día del año", y="Número de canciones")+
+  scale_x_continuous(breaks = seq(0,360,by=30))
+```
+
+### Música por meses
+
+```{r texto-mins-meses}
+meses <- spoti %>% 
+  group_by(mes) %>% 
+  summarise(Minutos=sum(Minutos))
+
+# Crear los valores de los minutos, horas y segundos de música escuchada:
+min_mes <- sum(meses$Minutos) %>% round(0)
+horas_mes <- round(min_mes/60, 2)
+dias_mes <- round(horas_mes/24, 2)
+
+# Crear el texto que se mostrará con el resumen del tiempo de escucha:
+tiempo_mes <- paste0(
+  "<div class='custom-box'>",
+  "De media, cada mes has escuchado <strong>", horas_mes, "</strong> horas de música.<br>",
+  "Eso son <strong>", min_mes, "</strong> minutos, o <strong>", dias_mes, "</strong> días cada mes.",
+  "</div>")
+
+HTML(tiempo_mes)
+```
+
+A lo largo de los meses, el tiempo que has dedicado a escuchas música ha variado del siguiente modo:
+
+```{r lineas-meses}
+glineas_mes <- ggplot(meses, aes(x=as.numeric(mes), y=Minutos, group=1,text = paste("Mes:", mes, "<br>Minutos escuchados:", round(Minutos,0)))) +
+  geom_line(color="#1db954") +
+  geom_point(shape=1, stroke=0.8) +
+  labs(x = "Mes", y = "Minutos totales escuchados") +
+  theme_classic()+
+  scale_y_continuous(limits = c(0,4500))+
+  scale_x_continuous(breaks = 1:12,
+                    labels = c("Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                             "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre \n (hasta el 12)")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.grid.major.y = element_line(color="gray90", linetype="dashed"))
+
+
+glineas_mes <- ggplotly(glineas_mes, tooltip = "text") %>%
+  layout(hovermode = "closest")
+
+glineas_mes
+```
+
+Además, dentro de cada mes no has escuchado música igual:
+
+```{r mins-dia-mes}
+mes_dias <- spoti %>% 
+  group_by(mes, dia) %>% 
+  summarise(Minutos=sum(Minutos)) %>% 
+  mutate(dia=as.numeric(dia))
+
+ggplot(mes_dias, aes(x=dia,y=Minutos))+
+  facet_wrap(~ mes, ncol = 4, strip.position = "top")+
+  geom_col(fill = "#1db954", alpha=0.7) +
+  labs(x = "Día del mes", y = "Media de minutos escuchados") +
+  theme_classic()+
+  theme(panel.grid.major.y = element_line(color="gray90", linetype="dashed"))+
+  scale_x_continuous(breaks = seq(0,31,by=5))
+```
+
+### ¿Cuánta música escuchas al día?
+
+```{r}
+# Crear los valores de los minutos, horas y segundos de música escuchada:
+media_dia <- mean(dias$Minutos) %>% round(0)
+
+# Crear el texto que se mostrará con el resumen del tiempo de escucha:
+tiempo_dia <- paste0(
+  "<div class='custom-box'>",
+  "De media, cada día has escuchado <strong>", media_dia, "</strong> minutos de música.",
+  "</div>")
+
+HTML(tiempo_dia)
+```
+
+### ¿En qué momentos escuchas más música?
+
+No todos los días son iguales, sino que la música que escuchas depende del día de la semana:
+
+```{r mins-semana}
+min_dia_semana <- spoti %>% 
+  group_by(dia_año, dia_semana) %>% 
+  summarise(min_dia=sum(Minutos)) %>% 
+  ungroup() %>% 
+  group_by(dia_semana) %>% 
+  summarise(Minutos=mean(min_dia))
+
+gbarras_semana <- ggplot(min_dia_semana, aes(x=dia_semana, y=Minutos, text = paste("Día de la semana:", dia_semana, "<br>Minutos medios escuchados:", round(Minutos,0)))) +
+  geom_col(fill = "#1db954", color="black", alpha=0.7) +
+  labs(x = "Día de la semana", y = "Media de minutos escuchados") +
+  theme_classic()+
+  theme(panel.grid.major.y = element_line(color="gray90", linetype="dashed"))
+
+gbarras_semana <- ggplotly(gbarras_semana, tooltip = "text") %>%
+  layout(hovermode = "closest")
+
+gbarras_semana
+```
+
+Además, dentro de cada día no se escucha siempre música a la misma hora, sino las horas de escucha más frecuentes son las siguientes:
+
+```{r canciones-hora}
+canciones_hora <- spoti %>% 
+  group_by(franja_horaria) %>% 
+  summarise(n_canciones=n())
+
+canciones_hora_g <- ggplot(canciones_hora, aes(x=franja_horaria, y=n_canciones, text = paste("Franja horaria:", franja_horaria, "<br>Nº de canciones:", n_canciones))) +
+  geom_col(fill = "#1db954", color="black", alpha=0.6) +
+  labs(x = "Franja horaria", y = "Número de canciones escuchadas") +
+  theme_classic()+
+  scale_x_discrete(limits = sprintf("%02d", 0:23))+
+  theme(panel.grid.major.y = element_line(color="gray90", linetype="dashed"))
+
+canciones_hora_g <- ggplotly(canciones_hora_g, tooltip = "text") %>%
+  layout(hovermode = "closest")
+
+canciones_hora_g
+```
+
+## Cantantes más escuchados [^1]
+
+[^1]: Los datos que proporciona Spotify solo tienen en cuenta al cante principal de cada canción, omitiendo a todas las personas que has escuchado en un ft.
+
+### Top 5 cantantes
+
+```{r top-cantantes}
+cantantes <- spoti %>% 
+  group_by(Cantante) %>% 
+  summarise(Minutos=sum(Minutos),
+            "Canciones escuchadas"=n()) %>% 
+  mutate(Minutos=round(Minutos, 0)) %>% 
+  arrange(-Minutos)
+
+top5 <- cantantes %>% 
+  top_n(5, Minutos) %>% 
+  pull(Cantante)
+
+top5_lista <- paste(top5, collapse = ", ")
+
+top_cantantes <- paste0(
+  "<div class='custom-box'>",
+  "Este año, los 5 cantantes que más tiempo has escuchados han sido <strong>", top5_lista, "</strong> .",
+  "</div>")
+
+HTML(top_cantantes)
+```
+
+Aunque sea parecido, el top 5 de los que más canciones has escuchado no tiene que ser igual:
+
+```{r top-5-canciones}
+top5_2 <- cantantes %>% 
+  mutate(Canciones_escuchadas=`Canciones escuchadas`) %>% 
+  top_n(5, Canciones_escuchadas)%>% 
+  pull(Cantante) 
+
+top5_2_lista <- paste(top5_2,collapse = ", ")
+
+top_cantantes_canciones <- paste0(
+  "<div class='custom-box'>",
+  "Este año, has escuchado más canciones de los siguientes 5 cantantes <strong>", top5_2_lista, "</strong> .",
+  "</div>")
+
+HTML(top_cantantes_canciones)
+```
+
+```{r}
+cantantes_dia <- spoti %>% 
+  group_by(dia_año) %>% 
+  summarise(numero_cantantes=n_distinct(Cantante))
+
+media_cantantes_dia <- mean(cantantes_dia$numero_cantantes) %>% round(0)
+sd_cantantes_dia <- sd(cantantes_dia$numero_cantantes) %>% round(0)
+
+texto_media_cantantes_d <- paste0(
+  "<div class='custom-box'>",
+  "De media, cada día has escuchado <strong>", media_cantantes_dia, "</strong> cantantes (con una desviación de", sd_cantantes_dia, ").","</div>")
+
+HTML(texto_media_cantantes_d)
+```
+
+En la siguiente tabla puedes profundizar en qué cantantes has escuchado más, y buscar el tiempo que has estado escuchando a la persona concreta que quieras:
+
+```{r}
+datatable(cantantes, options = list(
+  language = list(url = "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json")))
+```
+
+### Evolución mensual de los más escuchados
+
+::: panel-tabset
+#### Minutos escuchados
+
+```{r}
+g_top5 <- spoti %>% 
+  group_by(Cantante,mes) %>% 
+  summarise(Minutos=sum(Minutos),
+            Canciones=n()) %>% 
+  filter(Cantante %in% top5 | Cantante %in% top5_2)
+
+gtop5_min <- ggplot(g_top5, aes(x=mes, y=Minutos, color=Cantante, group=Cantante, text = paste("Cantante:", Cantante, "<br>Minutos mensuales escuchados:", round(Minutos,0)))) +
+  # Líneas con diferentes tipos de trazo para cada cantante
+  geom_line(aes(linetype=Cantante), size=1) +
+  
+  # Puntos más visibles
+  geom_point(size=2) +
+  
+  # Tema clásico como base
+  theme_classic() +
+  
+  # Personalización del tema
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        leyend_position="bottom",
+        text = element_text(size=12),
+        
+    # Grid horizontal para facilitar la lectura de valores
+    panel.grid.major.y = element_line(color="gray90", linetype="dashed")) +
+  
+  # Etiquetas y título
+  labs(x = "Mes", y = "Minutos escuchados") +
+  
+  # Escala de colores distintiva
+  scale_color_brewer(palette="Dark2")
+
+
+gtop5_min <- ggplotly(gtop5_min, tooltip = "text") %>%
+  layout(hovermode = "closest")%>%
+  style(showlegend = FALSE, 
+        traces = seq(length(unique(g_top5$Cantante)) + 1, 2*length(unique(g_top5$Cantante))))  # Oculta la leyenda para los puntos (si no se pone aparecen los cantnates duplicados, para puntos y líneas)
+
+gtop5_min
+```
+
+#### Canciones escuchadas
+
+```{r}
+gtop5_numero <- ggplot(g_top5, aes(x=mes, y=Canciones, color=Cantante, group=Cantante, text = paste("Cantante:", Cantante, "<br>Canciones escuchados:", Canciones))) +
+  # Líneas con diferentes tipos de trazo para cada cantante
+  geom_line(aes(linetype=Cantante), size=1) +
+  
+  # Puntos más visibles
+  geom_point(size=2) +
+  
+  # Tema clásico como base
+  theme_classic() +
+  
+  # Personalización del tema
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        leyend_position="bottom",
+        text = element_text(size=12),
+        
+    # Grid horizontal para facilitar la lectura de valores
+    panel.grid.major.y = element_line(color="gray90", linetype="dashed")) +
+  
+  # Etiquetas y título
+  labs(x = "Mes", y = "Canciones escuchadas") +
+  
+  # Escala de colores distintiva
+  scale_color_brewer(palette="Dark2")
+
+
+gtop5_numero <- ggplotly(gtop5_numero, tooltip = "text") %>%
+  layout(hovermode = "closest")%>%
+  style(showlegend = FALSE, 
+        traces = seq(length(unique(g_top5$Cantante)) + 1, 2*length(unique(g_top5$Cantante))))
+
+gtop5_numero
+```
+:::
+
+También puedes ver la evolución mensual de los cantantes que quieras:
+
+```{r}
+cantantes_mes <- spoti %>% 
+  group_by(Cantante,mes) %>% 
+  summarise(Minutos=sum(Minutos),
+            Canciones=n()) %>% 
+  mutate(Minutos=round(Minutos, 0)) %>% 
+  arrange(-Minutos)
+  
+
+datatable(cantantes_mes, options = list(
+  language = list(url = "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json")))
+```
+
+## Canciones más escuchadas
+
+```{r}
+canciones <- spoti %>% 
+  group_by(Canción, Cantante) %>% 
+  summarise(Veces_escuchada = n(),
+            Minutos = sum(Minutos)) %>% 
+  ungroup() %>% 
+  mutate(Minutos = round(Minutos, 0)) %>% 
+  arrange(desc(Veces_escuchada))
+
+
+datatable(canciones, options = list(
+  language = list(url = "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json")))
+```
+
+<br>
+
+<br>
+
+<br>
+
+Yo después de hacer esto:
+
+> *I´m goin´shtoopid (Shtoopid)*
+>
+> *Realmente bobo (Bobo)*
+>
+> (Abhir Hathiramani y José Sánchez, 2023)
