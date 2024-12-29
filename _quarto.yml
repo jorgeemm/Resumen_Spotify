@@ -1,0 +1,18 @@
+project:
+  type: website
+  output-dir: docs
+
+execute:
+  freeze: auto
+
+website:
+  title: "Resumen Spotify 2024"
+  bread-crumbs: false # Para que elimie de la parte superior las indicaciones de dónde se está (P.ej., que no aparezca: Análisis de datos > Análisis bivariado > Ttest )
+  back-to-top-navigation: true # Para que al final de cada página aparezca una opción para subir otra vez al principio.
+  navbar: false
+  sidebar: false
+
+files:
+  - Resumen_Spotify.qmd
+
+editor: visual
