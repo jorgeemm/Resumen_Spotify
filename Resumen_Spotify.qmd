@@ -9,6 +9,7 @@ format:
     toc_float: true
     toc-title: "Contenido"
     lang: es
+    self-contained: true
 editor: visual
 ---
 

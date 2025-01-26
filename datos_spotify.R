@@ -8,8 +8,8 @@ p_load(jsonlite, # Para abrir los datos
 
 # Abrir las bases de datos ------------------------------------------------
 
-canciones1 <- fromJSON("C:/Users/Lenovo/OneDrive/Escritorio/Resumen_Spotify/canciones1.json")
-canciones2 <- fromJSON("C:/Users/Lenovo/OneDrive/Escritorio/Resumen_Spotify/canciones2.json")
+canciones1 <- fromJSON("StreamingHistory_music_0.json")
+canciones2 <- fromJSON("StreamingHistory_music_1.json")
 
 
 # Si solo tienes una base de datos con las canciones, el siguiente paso no es necesario,
